@@ -2,7 +2,6 @@ from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from config import Config
 from selenium.webdriver.common.keys import Keys
 import time
@@ -26,10 +25,9 @@ def isElementExist(driver):
     if len(ele) == 0:
         flag = False
         return flag
-    if len(ele) == 1:
-        return flag
+    # if len(ele) >= 1:
+    #     return flag
     else:
-        flag = False
         return flag
 
 
@@ -60,14 +58,13 @@ def get_ticket(conf, driver, url):
     picture_start = driver.find_element(by=By.ID, value='nc_1_n1z')
     # 移动到相应的位置，并左键鼠标按住往右边拖
     ActionChains(driver).move_to_element(picture_start).click_and_hold(picture_start).move_by_offset(300, 0).release().perform()
-
     '''
+
     # 扫码登录
     scan_QR = driver.find_element(by=By.XPATH, value='//*[@id="toolbar_Div"]/div[2]/div[2]/ul/li[2]/a')
     scan_QR.click()
-    driver.implicitly_wait(10)
+    driver.implicitly_wait(30)
     '''
-
     # 点提示框
     driver.find_element(by=By.XPATH, value='//div[@class="dzp-confirm"]/div[2]/div[3]/a').click()
     driver.implicitly_wait(5)
@@ -125,9 +122,13 @@ def get_ticket(conf, driver, url):
         # 每张车票有两个tr，但是第二个tr没什么用
         tickets = [tickets[i] for i in range(len(tickets) - 1) if i % 2 == 0]
         for ticket in tickets:
-            # 如果车票的车次等于想要的车次并且硬卧的状态不是候补则点击预订
-            # value = '//td[8]'表示硬卧，td[10]表示硬座
-            if ticket.find_element(by=By.CLASS_NAME,value='number').text == conf.trainnumber and ticket.find_element(by=By.XPATH, value='//td[8]').text != "候补":
+            # 车票出发站
+            start_station = str(ticket.text).replace("复\n", "").replace("智\n", "").split('\n')[1]
+            # 车票到达站
+            arrival_station = str(ticket.text).replace("复\n", "").replace("智\n", "").split('\n')[2]
+            # 如果车票的车次等于想要的车次并且车票的出发站等于您的出发站，到达站等于您的到达站并且硬卧的状态不是候补则点击预订，这样可使得车票唯一
+            # value = '//td[2]'表示商务座特等座，'//td[3]'表示一等座，'//td[4]'表示二等座，'//td[5]'表示高级软卧，'//td[6]'表示软卧 ，'//td[7]'表示动卧，'//td[8]'表示硬卧，'//td[9]'表示软座，td[10]表示硬座
+            if ticket.find_element(by=By.CLASS_NAME,value='number').text == conf.trainnumber and start_station == conf.fromstation and arrival_station == conf.destination and ticket.find_element(by=By.XPATH, value='//td[8]').text != "候补":
                 # 点击预订
                 ticket.find_element(by=By.CLASS_NAME, value='btn72').click()
                 # 这里之后就不能继续使用ticket.find_element()了，因为页面进行了跳转，会出现stale element reference: element is not attached to the page document的错误
@@ -142,9 +143,13 @@ def get_ticket(conf, driver, url):
                 # driver.find_element(by=By.XPATH, value='//*[@id="dialog_xsertcj_ok"]').click()
                 # 提交订单
                 driver.find_element(by=By.XPATH, value='//*[@id="submitOrder_id"]').click()
+                # 选座  F座
+                # driver.find_element(by=By.ID, value='1F').click()
+                # 第二个人选座
+                # driver.find_element(by=By.ID, value='2D').click()
                 # 确认提交订单
                 ticket.find_element(by=By.XPATH, value='//*[@id="qr_submit_id"]').click()
-                print(f"{conf.trainnumber}次列车抢票成功，请尽快在10分钟内支付！")
+                print(f"{conf.trainnumber}次列车 从{start_station}-->{arrival_station} 抢票成功，请尽快在10分钟内支付！")
                 return
 
 
